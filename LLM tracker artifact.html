@@ -1,0 +1,603 @@
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Llm Youtube Tracker",
+  "schemaVersion": 1,
+  "description": "Interactive tracker of popular LLM-focused YouTube channels, their recent videos, topics, and thematic overlaps."
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM YouTube Channel Tracker</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8f9fb;
+    color: #1a1a2e;
+    padding: 24px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+  .updated {
+    display: inline-block;
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-bottom: 20px;
+  }
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0;
+  }
+  .tab {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+    border-radius: 4px 4px 0 0;
+  }
+  .tab:hover { color: #334155; background: #f1f5f9; }
+  .tab.active { color: #6366f1; border-bottom-color: #6366f1; font-weight: 600; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .channel-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    transition: box-shadow 0.15s;
+  }
+  .channel-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .channel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+  }
+  .channel-name { font-weight: 700; font-size: 15px; color: #0f172a; }
+  .channel-host { font-size: 12px; color: #64748b; }
+  .channel-desc { font-size: 12px; color: #475569; margin-bottom: 10px; line-height: 1.5; }
+  .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+  .tag-blue { background: #dbeafe; color: #1d4ed8; }
+  .tag-purple { background: #ede9fe; color: #7c3aed; }
+  .tag-green { background: #dcfce7; color: #15803d; }
+  .tag-orange { background: #ffedd5; color: #c2410c; }
+  .tag-pink { background: #fce7f3; color: #9d174d; }
+  .tag-gray { background: #f1f5f9; color: #475569; }
+  .subs { font-size: 11px; color: #94a3b8; margin-top: 8px; font-weight: 500; }
+  .table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: #f8fafc; border-bottom: 2px solid #e2e8f0; }
+  th {
+    padding: 10px 14px; text-align: left; font-weight: 600;
+    color: #475569; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+  td { padding: 11px 14px; vertical-align: top; border-bottom: 1px solid #f1f5f9; color: #334155; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+  .video-title { font-weight: 600; color: #1e293b; margin-bottom: 3px; }
+  .video-date { font-size: 11px; color: #94a3b8; }
+  .topic-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 500; white-space: nowrap; }
+  .badge {
+    display: inline-block; width: 28px; height: 28px; border-radius: 50%;
+    text-align: center; line-height: 28px; font-weight: 700;
+    font-size: 10px; color: #fff; margin-right: 6px; flex-shrink: 0;
+  }
+  .channel-label { display: flex; align-items: center; font-weight: 600; font-size: 13px; color: #1e293b; }
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .filter-bar span { font-size: 12px; color: #64748b; font-weight: 500; }
+  .filter-btn {
+    padding: 4px 12px; border-radius: 999px; border: 1.5px solid #e2e8f0;
+    background: #fff; font-size: 12px; font-weight: 500; cursor: pointer;
+    color: #475569; transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: #6366f1; color: #6366f1; }
+  .filter-btn.active { background: #6366f1; color: #fff; border-color: #6366f1; }
+  .theme-section { margin-bottom: 24px; }
+  .theme-section h2 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+  .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .theme-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
+  .theme-card h3 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+  .theme-dots { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dot-label { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #475569; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .overlap-table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: auto; margin-top: 20px; }
+  .cell-yes { text-align: center; color: #16a34a; font-size: 16px; }
+  .cell-no { text-align: center; color: #d1d5db; font-size: 16px; }
+  .cell-partial { text-align: center; color: #d97706; font-size: 14px; }
+  .note { font-size: 12px; color: #64748b; margin-top: 16px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>📺 LLM YouTube Channel Tracker</h1>
+<p class="subtitle">Tracking the most influential YouTube channels covering large language models — topics, hosts, and thematic overlaps.</p>
+<span class="updated">Last updated: April 2026</span>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('channels')">Channel Profiles</button>
+  <button class="tab" onclick="showTab('videos')">Video Table</button>
+  <button class="tab" onclick="showTab('themes')">Theme Overlap Map</button>
+</div>
+
+<!-- ===== TAB 1: CHANNEL PROFILES ===== -->
+<div id="tab-channels" class="tab-panel active">
+  <div class="channel-grid">
+
+    <div class="channel-card">
+      <div class="channel-header">
+        <div class="avatar" style="background:#6366f1">AK</div>
+        <div>
+          <div class="channel-name">Andrej Karpathy</div>
+          <div class="channel-host">Host: Andrej Karpathy (ex-OpenAI, ex-Tesla AI)</div>
+        </div>
+      </div>
+      <p class="channel-desc">Deep, long-form education on how LLMs are built and used. Two tracks: a "Zero to Hero" technical series and a general-audience series. Widely considered the gold standard for understanding LLM internals.</p>
+      <div class="tags">
+        <span class="tag tag-purple">LLM Training</span>
+        <span class="tag tag-blue">Transformers</span>
+        <span class="tag tag-green">Practical Use</span>
+        <span class="tag tag-orange">RLHF / RL</span>
+        <span class="tag tag-gray">Agents</span>
+      </div>
+      <div class="subs">▶ youtube.com/@AndrejKarpathy · Education / Tutorial</div>
+    </div>
+
+    <div class="channel-card">
+      <div class="channel-header">
+        <div class="avatar" style="background:#0ea5e9">LF</div>
+        <div>
+          <div class="channel-name">Lex Fridman Podcast</div>
+          <div class="channel-host">Host: Lex Fridman (MIT researcher)</div>
+        </div>
+      </div>
+      <p class="channel-desc">Long-form interviews (2–4h) with top AI researchers, CEOs, and scientists. Covers state-of-the-art LLM research, scaling debates, AGI timelines, geopolitics of AI, and insider perspectives from leading labs.</p>
+      <div class="tags">
+        <span class="tag tag-blue">Scaling Laws</span>
+        <span class="tag tag-blue">AGI</span>
+        <span class="tag tag-orange">AI Policy</span>
+        <span class="tag tag-purple">Interviews</span>
+        <span class="tag tag-gray">Agents</span>
+      </div>
+      <div class="subs">▶ youtube.com/lexfridman · Interview / Podcast · 4.5M+ subs</div>
+    </div>
+
+    <div class="channel-card">
+      <div class="channel-header">
+        <div class="avatar" style="background:#10b981">DP</div>
+        <div>
+          <div class="channel-name">Dwarkesh Podcast</div>
+          <div class="channel-host">Host: Dwarkesh Patel (journalist / podcaster)</div>
+        </div>
+      </div>
+      <p class="channel-desc">Pointed long-form interviews (60–120 min) with AI lab leaders, researchers, and tech executives. Known for extracting specific technical commitments and forecasts. Audience grew ~5× in 2025. 134 episodes as of March 2026.</p>
+      <div class="tags">
+        <span class="tag tag-blue">Scaling</span>
+        <span class="tag tag-orange">AI Strategy</span>
+        <span class="tag tag-purple">Interviews</span>
+        <span class="tag tag-green">Forecasting</span>
+      </div>
+      <div class="subs">▶ youtube.com/@DwarkeshPatel · Interview / Podcast</div>
+    </div>
+
+    <div class="channel-card">
+      <div class="channel-header">
+        <div class="avatar" style="background:#f59e0b">YK</div>
+        <div>
+          <div class="channel-name">Yannic Kilcher</div>
+          <div class="channel-host">Host: Yannic Kilcher (ML researcher, CTO DeepJudge)</div>
+        </div>
+      </div>
+      <p class="channel-desc">Deep technical paper walkthroughs. Covers alignment, interpretability, architecture innovations, and AI community debates. Known for rigorous academic analysis and honest critique.</p>
+      <div class="tags">
+        <span class="tag tag-purple">Paper Reviews</span>
+        <span class="tag tag-blue">Interpretability</span>
+        <span class="tag tag-pink">Alignment</span>
+        <span class="tag tag-orange">Agents</span>
+        <span class="tag tag-gray">Security</span>
+      </div>
+      <div class="subs">▶ youtube.com/@YannicKilcher · Research Analysis · 308K subs</div>
+    </div>
+
+    <div class="channel-card">
+      <div class="channel-header">
+        <div class="avatar" style="background:#8b5cf6">AE</div>
+        <div>
+          <div class="channel-name">AI Explained</div>
+          <div class="channel-host">Host: "AI Explained" (anonymous)</div>
+        </div>
+      </div>
+      <p class="channel-desc">Fast-paced, investigative breakdowns of the latest AI developments — model releases, benchmark battles, safety debates, and industry shifts. Best known for exclusive comparative series on GPT, Claude, and Gemini.</p>
+      <div class="tags">
+        <span class="tag tag-blue">Model Releases</span>
+        <span class="tag tag-pink">Safety</span>
+        <span class="tag tag-purple">Benchmarks</span>
+        <span class="tag tag-green">Multimodal</span>
+      </div>
+      <div class="subs">▶ AI Explained · News / Analysis · 328K–384K subs</div>
+    </div>
+
+    <div class="channel-card">
+      <div class="channel-header">
+        <div class="avatar" style="background:#0f62fe">IBM</div>
+        <div>
+          <div class="channel-name">IBM Technology</div>
+          <div class="channel-host">Host: IBM Technology team (various presenters)</div>
+        </div>
+      </div>
+      <p class="channel-desc">Enterprise-focused explainers on AI, LLMs, RAG, and the AI stack. Covers how organisations deploy LLMs in production — from architecture to Kubernetes-based inference. Part of IBM's broader AI Academy series.</p>
+      <div class="tags">
+        <span class="tag tag-blue">RAG</span>
+        <span class="tag tag-purple">Enterprise AI</span>
+        <span class="tag tag-green">AI Stack</span>
+        <span class="tag tag-orange">Agents</span>
+        <span class="tag tag-gray">Multimodal</span>
+      </div>
+      <div class="subs">▶ youtube.com/@IBMTechnology · Enterprise / Education · AI Academy playlist</div>
+    </div>
+
+    <div class="channel-card">
+      <div class="channel-header">
+        <div class="avatar" style="background:#14b8a6">MW</div>
+        <div>
+          <div class="channel-name">Matt Wolfe</div>
+          <div class="channel-host">Host: Matt Wolfe (entrepreneur, creator of FutureTools.io)</div>
+        </div>
+      </div>
+      <p class="channel-desc">Weekly AI news roundups and hands-on tool reviews. Covers model launches, AI product developments, and practical workflows. The go-to channel for keeping up with the fast-moving AI tool ecosystem.</p>
+      <div class="tags">
+        <span class="tag tag-green">AI Tools</span>
+        <span class="tag tag-blue">News Roundup</span>
+        <span class="tag tag-orange">Productivity</span>
+        <span class="tag tag-gray">Tutorials</span>
+      </div>
+      <div class="subs">▶ youtube.com/@mreflow · News / Tools · futuretools.io</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== TAB 2: VIDEO TABLE ===== -->
+<div id="tab-videos" class="tab-panel">
+  <div class="filter-bar">
+    <span>Filter by topic:</span>
+    <button class="filter-btn active" onclick="filterVideos('all', this)">All</button>
+    <button class="filter-btn" onclick="filterVideos('training', this)">Training</button>
+    <button class="filter-btn" onclick="filterVideos('agents', this)">Agents</button>
+    <button class="filter-btn" onclick="filterVideos('scaling', this)">Scaling</button>
+    <button class="filter-btn" onclick="filterVideos('safety', this)">Safety / Alignment</button>
+    <button class="filter-btn" onclick="filterVideos('tools', this)">Tools & Products</button>
+    <button class="filter-btn" onclick="filterVideos('interpretability', this)">Interpretability</button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="videoTable">
+      <thead>
+        <tr>
+          <th>Channel</th>
+          <th>Video / Episode</th>
+          <th>Date</th>
+          <th>LLM Topics Covered</th>
+          <th>Audience Level</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr data-topics="training,scaling">
+          <td><span class="channel-label"><span class="badge" style="background:#6366f1">AK</span>Karpathy</span></td>
+          <td><div class="video-title">Deep Dive into LLMs like ChatGPT</div><div class="video-date">3h 31m · Feb 2025</div></td>
+          <td>Feb 2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#ede9fe;color:#7c3aed">Pretraining</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">RLHF</span><span class="chip" style="background:#dcfce7;color:#15803d">Supervised Fine-tuning</span><span class="chip" style="background:#ffedd5;color:#c2410c">Tokenization</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="training,tools">
+          <td><span class="channel-label"><span class="badge" style="background:#6366f1">AK</span>Karpathy</span></td>
+          <td><div class="video-title">How I Use LLMs</div><div class="video-date">2h 11m · Feb 2025</div></td>
+          <td>Feb 2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dcfce7;color:#15803d">Practical Workflows</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Prompt Engineering</span><span class="chip" style="background:#f1f5f9;color:#475569">LLM Ecosystem</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="scaling,training,agents">
+          <td><span class="channel-label"><span class="badge" style="background:#6366f1">AK</span>Karpathy</span></td>
+          <td><div class="video-title">2025 LLM Year in Review</div><div class="video-date">Dec 2025</div></td>
+          <td>Dec 2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#ffedd5;color:#c2410c">RL Adoption</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Paradigm Shifts</span><span class="chip" style="background:#ede9fe;color:#7c3aed">Ambient Programming</span></div></td>
+          <td><span class="tag tag-blue">Mixed</span></td>
+        </tr>
+        <tr data-topics="agents,scaling">
+          <td><span class="channel-label"><span class="badge" style="background:#6366f1">AK</span>Karpathy</span></td>
+          <td><div class="video-title">Skill Issue: Code Agents, AutoResearch & the Loopy Era of AI</div><div class="video-date">Mar 2026</div></td>
+          <td>Mar 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#ffedd5;color:#c2410c">Code Agents</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Autonomous Research</span><span class="chip" style="background:#ede9fe;color:#7c3aed">AI Loops</span></div></td>
+          <td><span class="tag tag-blue">Mixed</span></td>
+        </tr>
+        <tr data-topics="scaling,agents,safety">
+          <td><span class="channel-label"><span class="badge" style="background:#0ea5e9">LF</span>Lex Fridman</span></td>
+          <td><div class="video-title">#490 – State of AI in 2026: LLMs, Coding, Scaling Laws, China, Agents, GPUs, AGI</div><div class="video-date">Jan 2026 · guests: Nathan Lambert & Sebastian Raschka</div></td>
+          <td>Jan 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">Scaling Laws</span><span class="chip" style="background:#ffedd5;color:#c2410c">Agents</span><span class="chip" style="background:#fce7f3;color:#9d174d">AGI Timeline</span><span class="chip" style="background:#dcfce7;color:#15803d">Post-training</span><span class="chip" style="background:#f1f5f9;color:#475569">Geopolitics</span></div></td>
+          <td><span class="tag tag-blue">Mixed</span></td>
+        </tr>
+        <tr data-topics="training,scaling">
+          <td><span class="channel-label"><span class="badge" style="background:#0ea5e9">LF</span>Lex Fridman</span></td>
+          <td><div class="video-title">How Modern LLMs Work</div><div class="video-date">2025</div></td>
+          <td>2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#ede9fe;color:#7c3aed">Transformer Architecture</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Attention</span><span class="chip" style="background:#dcfce7;color:#15803d">Pre-training</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="scaling,safety">
+          <td><span class="channel-label"><span class="badge" style="background:#0ea5e9">LF</span>Lex Fridman</span></td>
+          <td><div class="video-title">China vs US: Who Is Winning in AI?</div><div class="video-date">2026</div></td>
+          <td>2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#f1f5f9;color:#475569">AI Geopolitics</span><span class="chip" style="background:#ffedd5;color:#c2410c">Compute Race</span><span class="chip" style="background:#fce7f3;color:#9d174d">National Security</span></div></td>
+          <td><span class="tag tag-blue">Mixed</span></td>
+        </tr>
+        <tr data-topics="scaling,safety,agents">
+          <td><span class="channel-label"><span class="badge" style="background:#10b981">DP</span>Dwarkesh</span></td>
+          <td><div class="video-title">Interviews: Andrej Karpathy, Ilya Sutskever, Mark Zuckerberg</div><div class="video-date">Various 2025–2026</div></td>
+          <td>2025–2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">Scaling Bets</span><span class="chip" style="background:#fce7f3;color:#9d174d">Safety Strategy</span><span class="chip" style="background:#ffedd5;color:#c2410c">Lab Competition</span><span class="chip" style="background:#dcfce7;color:#15803d">Forecasting AGI</span></div></td>
+          <td><span class="tag tag-blue">Mixed</span></td>
+        </tr>
+        <tr data-topics="interpretability,safety">
+          <td><span class="channel-label"><span class="badge" style="background:#f59e0b">YK</span>Kilcher</span></td>
+          <td><div class="video-title">On the Biology of a Large Language Model (Part 2)</div><div class="video-date">May 2025 · Anthropic interpretability research</div></td>
+          <td>May 2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">Interpretability</span><span class="chip" style="background:#ede9fe;color:#7c3aed">Circuit Analysis</span><span class="chip" style="background:#fce7f3;color:#9d174d">Alignment</span></div></td>
+          <td><span class="tag tag-orange">Technical</span></td>
+        </tr>
+        <tr data-topics="interpretability,scaling">
+          <td><span class="channel-label"><span class="badge" style="background:#f59e0b">YK</span>Kilcher</span></td>
+          <td><div class="video-title">LLM Neuroanatomy: How I Topped the LLM Leaderboard Without Changing a Weight</div><div class="video-date">Mar 2026</div></td>
+          <td>Mar 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">Benchmarking</span><span class="chip" style="background:#ede9fe;color:#7c3aed">Interpretability</span><span class="chip" style="background:#ffedd5;color:#c2410c">Evaluation</span></div></td>
+          <td><span class="tag tag-orange">Technical</span></td>
+        </tr>
+        <tr data-topics="safety,agents">
+          <td><span class="channel-label"><span class="badge" style="background:#f59e0b">YK</span>Kilcher</span></td>
+          <td><div class="video-title">Prompt Injection Vulnerabilities in LLM Agents</div><div class="video-date">2024–2025</div></td>
+          <td>2024–2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#fce7f3;color:#9d174d">Security</span><span class="chip" style="background:#ffedd5;color:#c2410c">Agent Safety</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Jailbreaking</span></div></td>
+          <td><span class="tag tag-orange">Technical</span></td>
+        </tr>
+        <tr data-topics="tools,safety">
+          <td><span class="channel-label"><span class="badge" style="background:#8b5cf6">AE</span>AI Explained</span></td>
+          <td><div class="video-title">GPT-5 vs Claude vs Gemini – Exclusive Comparative Series</div><div class="video-date">Ongoing 2025–2026</div></td>
+          <td>2025–2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#ede9fe;color:#7c3aed">Model Comparison</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Benchmarks</span><span class="chip" style="background:#fce7f3;color:#9d174d">Safety Features</span><span class="chip" style="background:#dcfce7;color:#15803d">Multimodal</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="scaling,safety">
+          <td><span class="channel-label"><span class="badge" style="background:#8b5cf6">AE</span>AI Explained</span></td>
+          <td><div class="video-title">AI Breakthroughs & Ethics Debates</div><div class="video-date">Ongoing 2025–2026 · 106+ videos</div></td>
+          <td>2025–2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">AI Breakthroughs</span><span class="chip" style="background:#fce7f3;color:#9d174d">AI Ethics</span><span class="chip" style="background:#ffedd5;color:#c2410c">Industry Shifts</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="tools,training,agents">
+          <td><span class="channel-label"><span class="badge" style="background:#0f62fe">IBM</span>IBM Technology</span></td>
+          <td><div class="video-title">LLM-D Explained: Building Next-Gen AI with LLMs, RAG & Kubernetes</div><div class="video-date">Jan 3, 2026</div></td>
+          <td>Jan 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">RAG</span><span class="chip" style="background:#ffedd5;color:#c2410c">LLM Deployment</span><span class="chip" style="background:#dcfce7;color:#15803d">Enterprise AI</span><span class="chip" style="background:#ede9fe;color:#7c3aed">Kubernetes</span></div></td>
+          <td><span class="tag tag-blue">Mixed</span></td>
+        </tr>
+        <tr data-topics="tools,training">
+          <td><span class="channel-label"><span class="badge" style="background:#0f62fe">IBM</span>IBM Technology</span></td>
+          <td><div class="video-title">What Is Multimodal AI? How LLMs Process Text, Images, and More</div><div class="video-date">Apr 2026</div></td>
+          <td>Apr 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dcfce7;color:#15803d">Multimodal LLMs</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Vision-Language</span><span class="chip" style="background:#ede9fe;color:#7c3aed">Architecture</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="tools,scaling,training">
+          <td><span class="channel-label"><span class="badge" style="background:#0f62fe">IBM</span>IBM Technology</span></td>
+          <td><div class="video-title">What Is an AI Stack? LLMs, RAG & AI Hardware</div><div class="video-date">Nov 3, 2025</div></td>
+          <td>Nov 2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">AI Stack</span><span class="chip" style="background:#ffedd5;color:#c2410c">AI Hardware</span><span class="chip" style="background:#dcfce7;color:#15803d">RAG</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="agents,tools">
+          <td><span class="channel-label"><span class="badge" style="background:#0f62fe">IBM</span>IBM Technology</span></td>
+          <td><div class="video-title">LLMs and AI Agents: Transforming Unstructured Data</div><div class="video-date">May 13, 2025</div></td>
+          <td>May 2025</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#ffedd5;color:#c2410c">AI Agents</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Unstructured Data</span><span class="chip" style="background:#dcfce7;color:#15803d">Enterprise</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="tools,agents">
+          <td><span class="channel-label"><span class="badge" style="background:#14b8a6">MW</span>Matt Wolfe</span></td>
+          <td><div class="video-title">AI News: Anthropic Went Crazy This Week!</div><div class="video-date">Apr 2026</div></td>
+          <td>Apr 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dcfce7;color:#15803d">Claude Updates</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">Product Releases</span><span class="chip" style="background:#ffedd5;color:#c2410c">Anthropic News</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="tools">
+          <td><span class="channel-label"><span class="badge" style="background:#14b8a6">MW</span>Matt Wolfe</span></td>
+          <td><div class="video-title">The AI Tools I Actually Use Every Day (2026)</div><div class="video-date">Feb 2026</div></td>
+          <td>Feb 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dcfce7;color:#15803d">Productivity Tools</span><span class="chip" style="background:#dbeafe;color:#1d4ed8">LLM Apps</span><span class="chip" style="background:#f1f5f9;color:#475569">Workflows</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+        <tr data-topics="tools,scaling">
+          <td><span class="channel-label"><span class="badge" style="background:#14b8a6">MW</span>Matt Wolfe</span></td>
+          <td><div class="video-title">Top 7 AI News Today (Weekly Roundup)</div><div class="video-date">Mar 28, 2026</div></td>
+          <td>Mar 2026</td>
+          <td><div class="topic-chips"><span class="chip" style="background:#dbeafe;color:#1d4ed8">AI News</span><span class="chip" style="background:#dcfce7;color:#15803d">Model Releases</span><span class="chip" style="background:#ffedd5;color:#c2410c">Industry Updates</span></div></td>
+          <td><span class="tag tag-green">General Audience</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">† Topics derived from titles, descriptions, and creator announcements. YouTube direct access was restricted; data sourced from web search and official social posts.</p>
+</div>
+
+<!-- ===== TAB 3: THEME OVERLAP ===== -->
+<div id="tab-themes" class="tab-panel">
+  <div class="theme-section">
+    <h2>How Channels Cluster by LLM Theme</h2>
+    <div class="theme-grid">
+      <div class="theme-card">
+        <h3>🧠 LLM Training & Architecture</h3>
+        <div class="theme-dots">
+          <div class="dot-label"><div class="dot" style="background:#6366f1"></div>Karpathy (deep dives)</div>
+          <div class="dot-label"><div class="dot" style="background:#0ea5e9"></div>Lex Fridman (interviews)</div>
+          <div class="dot-label"><div class="dot" style="background:#0f62fe"></div>IBM Technology (explainers)</div>
+          <div class="dot-label"><div class="dot" style="background:#f59e0b"></div>Yannic Kilcher</div>
+        </div>
+      </div>
+      <div class="theme-card">
+        <h3>📏 Scaling Laws & Compute</h3>
+        <div class="theme-dots">
+          <div class="dot-label"><div class="dot" style="background:#0ea5e9"></div>Lex Fridman</div>
+          <div class="dot-label"><div class="dot" style="background:#10b981"></div>Dwarkesh Patel</div>
+          <div class="dot-label"><div class="dot" style="background:#6366f1"></div>Karpathy (2025 review)</div>
+        </div>
+      </div>
+      <div class="theme-card">
+        <h3>🤖 Agents & Agentic AI</h3>
+        <div class="theme-dots">
+          <div class="dot-label"><div class="dot" style="background:#6366f1"></div>Karpathy (Loopy Era)</div>
+          <div class="dot-label"><div class="dot" style="background:#f59e0b"></div>Kilcher (prompt injection)</div>
+          <div class="dot-label"><div class="dot" style="background:#0ea5e9"></div>Lex Fridman</div>
+          <div class="dot-label"><div class="dot" style="background:#0f62fe"></div>IBM Technology (enterprise)</div>
+          <div class="dot-label"><div class="dot" style="background:#14b8a6"></div>Matt Wolfe (tools)</div>
+        </div>
+      </div>
+      <div class="theme-card">
+        <h3>🔬 Interpretability & Alignment</h3>
+        <div class="theme-dots">
+          <div class="dot-label"><div class="dot" style="background:#f59e0b"></div>Yannic Kilcher (primary)</div>
+          <div class="dot-label"><div class="dot" style="background:#8b5cf6"></div>AI Explained (ethics)</div>
+          <div class="dot-label"><div class="dot" style="background:#10b981"></div>Dwarkesh Patel</div>
+        </div>
+      </div>
+      <div class="theme-card">
+        <h3>🛠️ Tools, Products & Demos</h3>
+        <div class="theme-dots">
+          <div class="dot-label"><div class="dot" style="background:#14b8a6"></div>Matt Wolfe (primary)</div>
+          <div class="dot-label"><div class="dot" style="background:#8b5cf6"></div>AI Explained</div>
+          <div class="dot-label"><div class="dot" style="background:#0f62fe"></div>IBM Technology (enterprise)</div>
+          <div class="dot-label"><div class="dot" style="background:#6366f1"></div>Karpathy (practical)</div>
+        </div>
+      </div>
+      <div class="theme-card">
+        <h3>🌐 AI Geopolitics & Policy</h3>
+        <div class="theme-dots">
+          <div class="dot-label"><div class="dot" style="background:#0ea5e9"></div>Lex Fridman</div>
+          <div class="dot-label"><div class="dot" style="background:#10b981"></div>Dwarkesh Patel</div>
+          <div class="dot-label"><div class="dot" style="background:#14b8a6"></div>Matt Wolfe (news)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="theme-section">
+    <h2>Channel × Theme Coverage Matrix</h2>
+    <div class="overlap-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th>Training /<br>Architecture</th>
+            <th>Scaling Laws</th>
+            <th>Agents</th>
+            <th>Interpretability</th>
+            <th>Safety</th>
+            <th>Tools /<br>Products</th>
+            <th>AI Policy /<br>Geopolitics</th>
+            <th>Paper<br>Reviews</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>🟣 Karpathy</strong></td>
+            <td class="cell-yes">✔</td><td class="cell-yes">✔</td><td class="cell-yes">✔</td>
+            <td class="cell-partial">~</td><td class="cell-no">–</td><td class="cell-yes">✔</td>
+            <td class="cell-no">–</td><td class="cell-no">–</td>
+          </tr>
+          <tr>
+            <td><strong>🔵 Lex Fridman</strong></td>
+            <td class="cell-yes">✔</td><td class="cell-yes">✔</td><td class="cell-yes">✔</td>
+            <td class="cell-partial">~</td><td class="cell-yes">✔</td><td class="cell-no">–</td>
+            <td class="cell-yes">✔</td><td class="cell-no">–</td>
+          </tr>
+          <tr>
+            <td><strong>🟢 Dwarkesh</strong></td>
+            <td class="cell-partial">~</td><td class="cell-yes">✔</td><td class="cell-yes">✔</td>
+            <td class="cell-no">–</td><td class="cell-yes">✔</td><td class="cell-no">–</td>
+            <td class="cell-yes">✔</td><td class="cell-no">–</td>
+          </tr>
+          <tr>
+            <td><strong>🟡 Yannic Kilcher</strong></td>
+            <td class="cell-yes">✔</td><td class="cell-partial">~</td><td class="cell-yes">✔</td>
+            <td class="cell-yes">✔</td><td class="cell-yes">✔</td><td class="cell-no">–</td>
+            <td class="cell-no">–</td><td class="cell-yes">✔</td>
+          </tr>
+          <tr>
+            <td><strong>🟪 AI Explained</strong></td>
+            <td class="cell-partial">~</td><td class="cell-partial">~</td><td class="cell-partial">~</td>
+            <td class="cell-no">–</td><td class="cell-yes">✔</td><td class="cell-yes">✔</td>
+            <td class="cell-partial">~</td><td class="cell-no">–</td>
+          </tr>
+          <tr>
+            <td><strong>🔷 IBM Technology</strong></td>
+            <td class="cell-yes">✔</td><td class="cell-partial">~</td><td class="cell-yes">✔</td>
+            <td class="cell-no">–</td><td class="cell-no">–</td><td class="cell-yes">✔</td>
+            <td class="cell-no">–</td><td class="cell-no">–</td>
+          </tr>
+          <tr>
+            <td><strong>🟦 Matt Wolfe</strong></td>
+            <td class="cell-no">–</td><td class="cell-partial">~</td><td class="cell-partial">~</td>
+            <td class="cell-no">–</td><td class="cell-no">–</td><td class="cell-yes">✔</td>
+            <td class="cell-partial">~</td><td class="cell-no">–</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">✔ = Core focus &nbsp;|&nbsp; ~ = Covered occasionally &nbsp;|&nbsp; – = Rarely/not covered</p>
+  </div>
+</div>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+  function filterVideos(topic, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const rows = document.querySelectorAll('#videoTable tbody tr');
+    rows.forEach(row => {
+      if (topic === 'all') { row.style.display = ''; return; }
+      const topics = (row.dataset.topics || '').split(',');
+      row.style.display = topics.includes(topic) ? '' : 'none';
+    });
+  }
+</script>
+</body>
+</html>
